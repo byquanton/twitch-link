@@ -1,0 +1,10 @@
+# Client ID for Interacting with the Twitch API
+client_id: mgtii8t6o367h6k3tnvi1a77lvdxim
+scopes: "user:read:subscriptions+user:read:follows"
+# Endpoints to be used for Interacting with Twitch (only change them if you are using a local mock api for testing)
+oauth_endpoint: "https://id.twitch.tv/oauth2/"
+helix_endpoint: "https://api.twitch.tv/helix/"
+# Which Login flow should be used to get the oauth token (currently only device_code is available)
+login_flow: "device_code"
+
+broadcaster_id: ""
