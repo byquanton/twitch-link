@@ -10,13 +10,11 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.Listener;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 
@@ -40,6 +39,8 @@ public class TwitchIntegration implements Listener {
     private final ScheduledExecutorService executorService;
 
     private final Map<String, ScheduledFuture<?>> validationTasks = new ConcurrentHashMap<>();
+
+    private final Map<UUID, AtomicBoolean> loginPollingFlowCancellationTokens = new ConcurrentHashMap<>();
 
     private final Storage storage;
 
@@ -112,7 +113,10 @@ public class TwitchIntegration implements Listener {
         TwitchDeviceCodeAuthentication codeAuthentication = new TwitchDeviceCodeAuthentication(this);
         audience.sendMessage(Component.text("Starting Login Flow"));
 
-        CompletableFuture<Boolean> loginFlowFuture = CompletableFuture.supplyAsync(() -> {
+        AtomicBoolean cancelToken = new AtomicBoolean(false);
+        loginPollingFlowCancellationTokens.put(uuid, cancelToken);
+
+        return CompletableFuture.supplyAsync(() -> {
             try {
                 return codeAuthentication.startDeviceAuthorizationFlow();
             } catch (Exception e) {
@@ -130,8 +134,10 @@ public class TwitchIntegration implements Listener {
             Runnable pollToken = new Runnable() {
                 @Override
                 public void run() {
-                    if (tokenFuture.isDone()) return;
-
+                    if (cancelToken.get()) {
+                        tokenFuture.completeExceptionally(new InterruptedException("Login flow was cancelled."));
+                        return;
+                    }
                     try {
                         TokenResponse tokenResponse = codeAuthentication.obtainToken(authorizationResponse.deviceCode());
                         tokenFuture.complete(tokenResponse);
@@ -163,6 +169,7 @@ public class TwitchIntegration implements Listener {
 
             return tokenFuture.join();
         }).thenCompose(tokenResponseObject -> {
+            loginPollingFlowCancellationTokens.remove(uuid);
             if (tokenResponseObject == null) return CompletableFuture.completedFuture(false);
 
             TokenResponse tokenResponse = (TokenResponse) tokenResponseObject;
@@ -194,8 +201,13 @@ public class TwitchIntegration implements Listener {
 
             return CompletableFuture.completedFuture(true);
         });
+    }
 
-        return loginFlowFuture;
+    public void abortLoginPollingFlow(UUID uuid) {
+        AtomicBoolean token = loginPollingFlowCancellationTokens.get(uuid);
+        if (token != null) {
+            token.set(true);
+        }
     }
 
 

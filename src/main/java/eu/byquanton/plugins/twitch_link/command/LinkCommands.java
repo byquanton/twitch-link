@@ -84,19 +84,12 @@ public class LinkCommands extends CommandHandler {
             context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You haven't started a login process yet. Use <gray>/link</gray> to start it."));
             return;
         }
-
         CompletableFuture<Boolean> completableFuture = hasLoginInProgress.get(playerUUID);
 
-        if (completableFuture.isDone()) {
-            // This shouldn't happen ...
-            context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You haven't started a login process yet. Use <gray>/link</gray> to start it."));
-            hasLoginInProgress.remove(playerUUID);
-            return;
-        }
 
-        // TODO: This isn't stopping the Runnable inside startLoginFlow
+        twitchIntegration.abortLoginPollingFlow(playerUUID);
         completableFuture.cancel(true);
-
+        hasLoginInProgress.remove(playerUUID);
         context.sender().sendMessage(Component.text("Your login process was aborted."));
     }
 
