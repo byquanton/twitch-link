@@ -16,12 +16,15 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 
@@ -105,72 +108,94 @@ public class TwitchIntegration implements Listener {
         }
     }
 
-    public boolean startLoginFlow(UUID uuid, Audience audience) {
+    public CompletableFuture<Boolean> startLoginFlow(UUID uuid, Audience audience) {
         TwitchDeviceCodeAuthentication codeAuthentication = new TwitchDeviceCodeAuthentication(this);
         audience.sendMessage(Component.text("Starting Login Flow"));
 
-        DeviceAuthorizationResponse authorizationResponse;
-
-        try {
-            authorizationResponse = codeAuthentication.startDeviceAuthorizationFlow();
-        } catch (Exception e) {
-            audience.sendMessage(Component.text("Error contacting Twitch API: " + e.getMessage()));
-            return false;
-        }
-
-        audience.sendMessage(Component.text("Device Code: " + authorizationResponse.userCode())
-                .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, authorizationResponse.verificationUri())));
-
-        TokenResponse tokenResponse = null;
-
-        while (tokenResponse == null) {
+        CompletableFuture<Boolean> loginFlowFuture = CompletableFuture.supplyAsync(() -> {
             try {
-                tokenResponse = codeAuthentication.obtainToken(authorizationResponse.deviceCode());
-            } catch (TwitchAPIException e) {
-                if ("authorization_pending".equals(e.getMessage())) {
-                    audience.sendActionBar(Component.text("Waiting for authorization..."));
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ex) {
-                        Thread.currentThread().interrupt();
-                        return false;
-                    }
-                } else {
-                    audience.sendMessage(Component.text("Twitch API error: " + e.getMessage()));
-                    return false;
-                }
-            } catch (IOException | InterruptedException e) {
-                audience.sendMessage(Component.text("Authorization failed: " + e.getMessage()));
-                return false;
+                return codeAuthentication.startDeviceAuthorizationFlow();
+            } catch (Exception e) {
+                audience.sendMessage(Component.text("Error contacting Twitch API: " + e.getMessage()));
+                return null;
             }
-        }
+        }).thenApply(authorizationResponse -> {
+            if (authorizationResponse == null) return CompletableFuture.completedFuture(false);
 
-        TokenValidationResponse validationResponse;
+            audience.sendMessage(Component.text("Device Code: " + authorizationResponse.userCode())
+                    .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, authorizationResponse.verificationUri())));
 
-        try {
-            validationResponse = twitchTokenValidation.validate(tokenResponse.accessToken());
-        } catch (Exception e) {
-            audience.sendMessage(Component.text("Token validation failed: " + e.getMessage()).color(NamedTextColor.RED));
-            return false;
-        }
+            CompletableFuture<TokenResponse> tokenFuture = new CompletableFuture<>();
 
-        String twitchUserId = validationResponse.userId();
-        String twitchLogin = validationResponse.login();
+            Runnable pollToken = new Runnable() {
+                @Override
+                public void run() {
+                    if (tokenFuture.isDone()) return;
 
-        try {
-            storage.createTwitchUser(twitchUserId, twitchLogin, tokenResponse.accessToken(), tokenResponse.refreshToken());
-            storage.linkAccounts(uuid, twitchUserId);
-            audience.sendMessage(Component.text("Storing Twitch data in database"));
-        } catch (SQLException e) {
-            audience.sendMessage(Component.text("An Error occurred while trying to save data in the Database").color(NamedTextColor.RED));
-            logger.severe("DB error while saving Twitch user: " + e.getMessage());
-            return false;
-        }
+                    try {
+                        TokenResponse tokenResponse = codeAuthentication.obtainToken(authorizationResponse.deviceCode());
+                        tokenFuture.complete(tokenResponse);
+                    } catch (TwitchAPIException e) {
+                        if ("authorization_pending".equals(e.getMessage())) {
+                            audience.sendActionBar(Component.text("Waiting for authorization..."));
+                            // Schedule next poll after 5 seconds
+                            executorService.schedule(this, 5, TimeUnit.SECONDS);
+                        } else {
+                            audience.sendMessage(Component.text("Twitch API error: " + e.getMessage()));
+                            tokenFuture.completeExceptionally(e);
+                        }
+                    } catch (IOException | InterruptedException e) {
+                        audience.sendMessage(Component.text("Authorization failed: " + e.getMessage()));
+                        tokenFuture.completeExceptionally(e);
+                    }
+                }
+            };
 
-        validationTasks.put(twitchUserId, executorService.scheduleAtFixedRate(() -> restoreToken(uuid), 1, 1, TimeUnit.HOURS));
+            // Start polling immediately
+            executorService.submit(pollToken);
 
-        audience.sendMessage(Component.text("Logged in as: " + twitchLogin));
-        return true;
+            executorService.schedule(() -> {
+                if (!tokenFuture.isDone()) {
+                    tokenFuture.completeExceptionally(new TimeoutException("Authorization timed out after 2 minutes."));
+                    audience.sendMessage(Component.text("Authorization timed out."));
+                }
+            }, 2, TimeUnit.MINUTES);
+
+            return tokenFuture.join();
+        }).thenCompose(tokenResponseObject -> {
+            if (tokenResponseObject == null) return CompletableFuture.completedFuture(false);
+
+            TokenResponse tokenResponse = (TokenResponse) tokenResponseObject;
+
+            TokenValidationResponse validationResponse;
+            try {
+                validationResponse = twitchTokenValidation.validate(tokenResponse.accessToken());
+            } catch (Exception e) {
+                audience.sendMessage(Component.text("Token validation failed: " + e.getMessage()).color(NamedTextColor.RED));
+                return CompletableFuture.completedFuture(false);
+            }
+
+            String twitchUserId = validationResponse.userId();
+            String twitchLogin = validationResponse.login();
+
+            try {
+                storage.createTwitchUser(twitchUserId, twitchLogin, tokenResponse.accessToken(), tokenResponse.refreshToken());
+                storage.linkAccounts(uuid, twitchUserId);
+                audience.sendMessage(Component.text("Storing Twitch data in database"));
+            } catch (SQLException e) {
+                audience.sendMessage(Component.text("An Error occurred while trying to save data in the Database").color(NamedTextColor.RED));
+                logger.severe("DB error while saving Twitch user: " + e.getMessage());
+                return CompletableFuture.completedFuture(false);
+            }
+
+            validationTasks.put(twitchUserId, executorService.scheduleAtFixedRate(() -> restoreToken(uuid), 1, 1, TimeUnit.HOURS));
+
+            audience.sendMessage(Component.text("Logged in as: " + twitchLogin));
+
+            return CompletableFuture.completedFuture(true);
+        });
+
+        return loginFlowFuture;
     }
 
 

@@ -6,16 +6,17 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
-import java.util.ArrayList;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LinkCommands extends CommandHandler {
 
-    private final ArrayList<UUID> hasLoginInProgress = new ArrayList<>();
+    private final Map<UUID, CompletableFuture<Boolean>> hasLoginInProgress = new ConcurrentHashMap<>();
     private final TwitchIntegration twitchIntegration = plugin.getTwitchIntegration();
 
     public LinkCommands(TwitchLinkPlugin plugin, LegacyPaperCommandManager<CommandSender> commandManager) {
@@ -55,29 +56,48 @@ public class LinkCommands extends CommandHandler {
             return;
         }
 
-        if (hasLoginInProgress.contains(playerUUID)) {
+        if (hasLoginInProgress.containsKey(playerUUID)) {
             context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You already started a login process. Use <gray>/link abort</gray> to abort it."));
             return;
         }
 
-        hasLoginInProgress.add(playerUUID);
+        CompletableFuture<Boolean> loginFlowFuture = twitchIntegration.startLoginFlow(playerUUID, context.sender());
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                boolean success = twitchIntegration.startLoginFlow(playerUUID, context.sender());
-                if (!success) {
-                    context.sender().sendMessage(Component.text("Twitch Integration failed"));
-                }
-                hasLoginInProgress.remove(playerUUID);
+        hasLoginInProgress.put(playerUUID, loginFlowFuture);
+
+
+        loginFlowFuture.thenAccept(aBoolean -> {
+            if (aBoolean) {
+                context.sender().sendMessage(Component.text("Twitch Integration was successful"));
+            } else {
+                context.sender().sendMessage(Component.text("Twitch Integration failed"));
             }
-        }.runTaskAsynchronously(plugin);
+            hasLoginInProgress.remove(playerUUID);
+        });
     }
 
 
     private void linkAbort(CommandContext<Player> context) {
-        // TODO: Not Implemented
-        context.sender().sendMessage("TODO: Not Implemented");
+        UUID playerUUID = context.sender().getUniqueId();
+
+        if (!hasLoginInProgress.containsKey(playerUUID)) {
+            context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You haven't started a login process yet. Use <gray>/link</gray> to start it."));
+            return;
+        }
+
+        CompletableFuture<Boolean> completableFuture = hasLoginInProgress.get(playerUUID);
+
+        if (completableFuture.isDone()) {
+            // This shouldn't happen ...
+            context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You haven't started a login process yet. Use <gray>/link</gray> to start it."));
+            hasLoginInProgress.remove(playerUUID);
+            return;
+        }
+
+        // TODO: This isn't stopping the Runnable inside startLoginFlow
+        completableFuture.cancel(true);
+
+        context.sender().sendMessage(Component.text("Your login process was aborted."));
     }
 
     private void unLinkAccount(CommandContext<Player> context) {
