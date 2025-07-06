@@ -4,10 +4,16 @@ import eu.byquanton.plugins.twitch_link.TwitchLinkPlugin;
 import eu.byquanton.plugins.twitch_link.storage.Storage;
 import eu.byquanton.plugins.twitch_link.twitch.flow.TwitchDeviceCodeAuthentication;
 import eu.byquanton.plugins.twitch_link.twitch.response.*;
+import eu.byquanton.plugins.twitch_link.util.ActionExecutor;
 import eu.byquanton.plugins.twitch_link.util.MessageProvider;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
 import java.io.File;
@@ -108,7 +114,8 @@ public class TwitchIntegration implements Listener {
         }
     }
 
-    public CompletableFuture<Boolean> startLoginFlow(UUID uuid, Audience audience) {
+    public CompletableFuture<Boolean> startLoginFlow(Player player, Audience audience) {
+        UUID uuid = player.getUniqueId();
         TwitchDeviceCodeAuthentication codeAuthentication = new TwitchDeviceCodeAuthentication(this);
         MessageProvider messageProvider = plugin.getMessageProvider();
 
@@ -159,7 +166,7 @@ public class TwitchIntegration implements Listener {
                     } catch (IOException | InterruptedException e) {
                         audience.sendMessage(messageProvider.getMessage(
                                 "twitch.authorization_failed",
-                               Placeholder.unparsed("error_message", e.getMessage())
+                                Placeholder.unparsed("error_message", e.getMessage())
                         ));
                         tokenFuture.completeExceptionally(e);
                     }
@@ -215,6 +222,48 @@ public class TwitchIntegration implements Listener {
             ));
 
             return CompletableFuture.completedFuture(true);
+        }).thenApply(success -> {
+            if (success) {
+                try {
+                    TwitchUser twitchUser = plugin.getStorage().getLinkedTwitchUser(player.getUniqueId());
+                    String broadcaster = plugin.getConfig().getString("broadcaster_id", "");
+
+                    CompletableFuture<Boolean> isSub = getTwitchRequestUtil().isUserSubscribed(twitchUser, broadcaster);
+                    isSub.orTimeout(5, TimeUnit.SECONDS).whenComplete((subscribed, throwable) -> {
+                        if (throwable != null) {
+                            if (throwable instanceof TimeoutException) {
+                                logError(player, messageProvider.getMessage("debug.error_timeout"));
+                            } else {
+                                logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                            }
+                        } else {
+                            if (subscribed) {
+                                plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.subscriber.actions"));
+                            }
+                        }
+                    });
+
+                    CompletableFuture<Boolean> isFollower = getTwitchRequestUtil().isUserFollowing(twitchUser, broadcaster);
+                    isFollower.orTimeout(5, TimeUnit.SECONDS).whenComplete((follower, throwable) -> {
+                        if (throwable != null) {
+                            if (throwable instanceof TimeoutException) {
+                                plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
+                            } else {
+                                plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                            }
+                        } else {
+                            if (follower) {
+                                plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.follower.actions"));
+                            }
+                        }
+                    });
+
+
+                } catch (Exception e) {
+                    audience.sendMessage(plugin.getMessageProvider().getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+                }
+            }
+            return success;
         });
     }
 
@@ -272,6 +321,12 @@ public class TwitchIntegration implements Listener {
         try {
             TwitchUser twitchUser = storage.getLinkedTwitchUser(uuid);
             if (twitchUser != null) {
+                OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(uuid);
+                if (offlinePlayer.isOnline()) {
+                    plugin.getActionExecutor().executeConfiguredActions(offlinePlayer.getPlayer(), twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "unlink.actions"));
+                } else {
+                    plugin.getActionExecutor().executeConfiguredActions(plugin.getStorage().getLastKnownName(uuid), twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "unlink.actions"));
+                }
                 storage.unLinkAccount(uuid);
                 removeTwitchUser(twitchUser.twitchUserId());
             }
@@ -290,6 +345,13 @@ public class TwitchIntegration implements Listener {
         } catch (SQLException e) {
             logger.severe("Failed to delete Twitch user from DB: " + twitchUserId + ", error: " + e.getMessage());
         }
+    }
+
+
+    public void logError(CommandSender sender, Component errorMessage) {
+        sender.sendMessage(errorMessage);
+        String plainMessage = PlainTextComponentSerializer.plainText().serialize(errorMessage);
+        plugin.getLogger().severe(plainMessage);
     }
 
     public TwitchRequestUtil getTwitchRequestUtil() {

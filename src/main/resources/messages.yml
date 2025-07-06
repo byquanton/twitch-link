@@ -28,7 +28,7 @@ debug:
 twitch:
   starting_login_flow: "<prefix><gray>Starting Login Flow</gray>"
   error_contacting_twitch: "<prefix><red>Error contacting Twitch API: <error_message></red>"
-  device_code: "<prefix>Open <aqua><click:open_url:<verification_uri>>twitch.tv/activate</click></aqua> and enter: <b><user_code></b> — or <b><click:open_url:<verification_uri>>[click here]</click></b>"
+  device_code: "<prefix>Open <b><aqua><click:open_url:<verification_uri>>twitch.tv/activate</click></aqua></b> and enter: <b><user_code></b>"
   waiting_for_authorization: "<gray>Waiting for authorization...</gray>"
   twitch_api_error: "<prefix><red>Twitch API error: <error_message></red>"
   authorization_failed: "<prefix><red>Authorization failed: <error_message></red>"

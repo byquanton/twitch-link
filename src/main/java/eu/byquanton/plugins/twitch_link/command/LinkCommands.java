@@ -65,7 +65,7 @@ public class LinkCommands extends CommandHandler {
             return;
         }
 
-        CompletableFuture<Boolean> loginFlowFuture = twitchIntegration.startLoginFlow(playerUUID, context.sender());
+        CompletableFuture<Boolean> loginFlowFuture = twitchIntegration.startLoginFlow(context.sender(), context.sender());
 
         hasLoginInProgress.put(playerUUID, loginFlowFuture);
 

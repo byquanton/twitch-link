@@ -3,9 +3,7 @@ package eu.byquanton.plugins.twitch_link.command;
 import eu.byquanton.plugins.twitch_link.TwitchLinkPlugin;
 import eu.byquanton.plugins.twitch_link.twitch.TwitchIntegration;
 import eu.byquanton.plugins.twitch_link.twitch.TwitchUser;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.bukkit.parser.PlayerParser;
@@ -65,9 +63,9 @@ public class DebugCommands extends CommandHandler {
             twitchIntegration.getTwitchRequestUtil().isUserLive(linkedTwitchUser).orTimeout(5, TimeUnit.SECONDS).whenComplete((userLive, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
                     } else {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
                     }
                 } else {
                     context.sender().sendMessage(
@@ -78,7 +76,7 @@ public class DebugCommands extends CommandHandler {
                 }
             });
         } catch (SQLException e) {
-            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+            twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
     }
 
@@ -93,9 +91,9 @@ public class DebugCommands extends CommandHandler {
             twitchIntegration.getTwitchRequestUtil().isUserSubscribed(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userSubscribed, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
                     } else {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
                     }
                 } else {
                     context.sender().sendMessage(
@@ -107,7 +105,7 @@ public class DebugCommands extends CommandHandler {
             });
 
         } catch (SQLException e) {
-            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+            twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
     }
 
@@ -121,9 +119,9 @@ public class DebugCommands extends CommandHandler {
             twitchIntegration.getTwitchRequestUtil().isUserFollowing(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userFollowing, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
                     } else {
-                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                        twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
                     }
                 } else {
                     context.sender().sendMessage(
@@ -134,15 +132,8 @@ public class DebugCommands extends CommandHandler {
                 }
             });
         } catch (SQLException e) {
-            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+            twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
-    }
-
-
-    private void logError(CommandSender sender, Component errorMessage) {
-        sender.sendMessage(errorMessage);
-        String plainMessage = PlainTextComponentSerializer.plainText().serialize(errorMessage);
-        plugin.getLogger().severe(plainMessage);
     }
 
 }

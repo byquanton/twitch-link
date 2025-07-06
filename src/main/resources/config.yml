@@ -10,20 +10,20 @@ join:
     # Actions if player is a subscriber of the broadcaster (specified in broadcaster_id)
     # Placeholders: <player_name> <twitch_name>
     actions:
-      - type: message
+      - type: "message"
         message: "<green>Welcome back, <player_name>! Thanks for subscribing!</green>"
         broadcast: false
         required_permission: ""
-      - type: command
+      - type: "command"
         command: "lp user <player_name> permission set twitch.subscriber"
-        executor: console # console or player
-        required_permission: "!twitch.subscriber"
+        executor: "console" # console or player
+        required_permission: ""
 
     # Actions if player is NOT a subscriber
     else_actions:
-      - type: command
+      - type: "command"
         command: "lp user <player_name> permission unset twitch.subscriber"
-        executor: console # console or player
+        executor: "console"
         required_permission: "twitch.subscriber"
 
   follower:
@@ -31,15 +31,15 @@ join:
     # Actions if player is a follower of the broadcaster (specified in broadcaster_id)
     # Placeholders: <player_name> <twitch_name>
     actions:
-      - type: command
+      - type: "command"
         command: "lp user <player_name> permission set twitch.follower"
-        executor: console # console or player
-        required_permission: "!twitch.follower"
+        executor: "console"
+        required_permission: ""
     # Actions if player is NOT a following
     else_actions:
-      - type: command
+      - type: "command"
         command: "lp user <player_name> permission unset twitch.follower"
-        executor: console # console or player
+        executor: "console"
         required_permission: "twitch.follower"
 
   live:
@@ -47,9 +47,43 @@ join:
     # Actions if player is live
     # Placeholders: <player_name> <twitch_name>
     actions:
-      - type: message
+      - type: "message"
         message: "<light_purple><player_name> is live on Twitch right now! (twitch.tv/<twitch_name>)</light_purple>"
         broadcast: true
         required_permission: ""
 
     else_actions: []
+
+link:
+  subscriber:
+    enabled: true
+    # Actions if player is a subscriber of the broadcaster (specified in broadcaster_id)
+    # Placeholders: <player_name> <twitch_name>
+    actions:
+      - type: "message"
+        message: "<green>Welcome back, <player_name>! Thanks for subscribing!</green>"
+        broadcast: false
+        required_permission: ""
+      - type: "command"
+        command: "lp user <player_name> permission set twitch.subscriber"
+        executor: "console"
+        required_permission: ""
+
+  follower:
+    enabled: true
+    # Actions if player is a follower of the broadcaster (specified in broadcaster_id)
+    # Placeholders: <player_name> <twitch_name>
+    actions:
+      - type: "command"
+        command: "lp user <player_name> permission set twitch.follower"
+        executor: "console"
+        required_permission: ''
+
+unlink:
+  actions:
+    - type: "command"
+      command: "lp user <player_name> permission unset twitch.follower"
+      executor: "console"
+    - type: "command"
+      command: "lp user <player_name> permission unset twitch.subscriber"
+      executor: "console"
