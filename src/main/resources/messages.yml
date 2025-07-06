@@ -1,0 +1,39 @@
+prefix: "<color:#9146ff>[Twitch Link]</color> "
+
+join:
+  linked: "<prefix>You are currently linked to <b><twitch_login></b>"
+  not_linked: "<prefix>You are currently not linked any account"
+
+link:
+  already_linked: "<prefix>You are currently linked to <b><twitch_login></b>"
+  already_started: "<prefix>You already started a login process. Use <gray>/link abort</gray> to abort it."
+  not_started: "<prefix>You haven't started a login process yet. Use <gray>/link</gray> to start it."
+  aborted: "<prefix>You aborted the login process"
+  integration_success: "<prefix>Twitch Integration was <green>successful</green>"
+  integration_failed: "<prefix>Twitch Integration <red>failed</red>"
+  account_unlinked: "<prefix>Account is unlinked"
+  account_not_linked: "<prefix>You don't have your Account linked. Use /link to link your account"
+
+debug:
+  is_live_true: "<prefix>Player is <b>live</b> on Twitch"
+  is_live_false: "<prefix>Player <b>isn't live</b> on Twitch"
+  is_subscribed_true: "<prefix>Player <b>is subscribed</b> to the specified broadcaster"
+  is_subscribed_false: "<prefix><red>Player <b>isn't subscribed</b> to the specified broadcaster</red>"
+  follows_true: "<prefix>Player <b>follows</b> the specified broadcaster"
+  follows_false: "<prefix>Player <b>isn't following</b> the specified broadcaster"
+  error_database: "<prefix><red>Database Error, failed to read user data. Message: <error_message></red>"
+  error_api: "<prefix><red>API Error, failed to fetch data. Message: <error_message></red>"
+  error_timeout: "<prefix><red>Request timed out, while trying to fetch data.</red>"
+
+twitch:
+  starting_login_flow: "<prefix><gray>Starting Login Flow</gray>"
+  error_contacting_twitch: "<prefix><red>Error contacting Twitch API: <error_message></red>"
+  device_code: "<prefix>Open <aqua><click:open_url:<verification_uri>>twitch.tv/activate</click></aqua> and enter: <b><user_code></b> — or <b><click:open_url:<verification_uri>>[click here]</click></b>"
+  waiting_for_authorization: "<gray>Waiting for authorization...</gray>"
+  twitch_api_error: "<prefix><red>Twitch API error: <error_message></red>"
+  authorization_failed: "<prefix><red>Authorization failed: <error_message></red>"
+  authorization_timed_out: "<prefix><red>Authorization timed out.</red>"
+  token_validation_failed: "<prefix><red>Token validation failed: <error_message></red>"
+  storing_twitch_data: "<prefix>Storing Twitch data in database"
+  db_save_error: "<prefix><red>An Error occurred while trying to save data in the Database</red>"
+  logged_in_as: "<prefix>Logged in as: <b><twitch_login></b>"

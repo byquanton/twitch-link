@@ -4,10 +4,9 @@ import eu.byquanton.plugins.twitch_link.TwitchLinkPlugin;
 import eu.byquanton.plugins.twitch_link.storage.Storage;
 import eu.byquanton.plugins.twitch_link.twitch.flow.TwitchDeviceCodeAuthentication;
 import eu.byquanton.plugins.twitch_link.twitch.response.*;
+import eu.byquanton.plugins.twitch_link.util.MessageProvider;
 import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.Listener;
 
@@ -111,7 +110,7 @@ public class TwitchIntegration implements Listener {
 
     public CompletableFuture<Boolean> startLoginFlow(UUID uuid, Audience audience) {
         TwitchDeviceCodeAuthentication codeAuthentication = new TwitchDeviceCodeAuthentication(this);
-        audience.sendMessage(Component.text("Starting Login Flow"));
+        MessageProvider messageProvider = plugin.getMessageProvider();
 
         AtomicBoolean cancelToken = new AtomicBoolean(false);
         loginPollingFlowCancellationTokens.put(uuid, cancelToken);
@@ -120,14 +119,18 @@ public class TwitchIntegration implements Listener {
             try {
                 return codeAuthentication.startDeviceAuthorizationFlow();
             } catch (Exception e) {
-                audience.sendMessage(Component.text("Error contacting Twitch API: " + e.getMessage()));
+                audience.sendMessage(messageProvider.getMessage("twitch.error_contacting_twitch", Placeholder.unparsed("error_message", e.getMessage())));
                 return null;
             }
         }).thenApply(authorizationResponse -> {
             if (authorizationResponse == null) return CompletableFuture.completedFuture(false);
 
-            audience.sendMessage(Component.text("Device Code: " + authorizationResponse.userCode())
-                    .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, authorizationResponse.verificationUri())));
+            audience.sendMessage(messageProvider.getMessage(
+                    "twitch.device_code",
+                    Placeholder.unparsed("user_code", authorizationResponse.userCode()),
+                    Placeholder.parsed("verification_uri", authorizationResponse.verificationUri())
+            ));
+
 
             CompletableFuture<TokenResponse> tokenFuture = new CompletableFuture<>();
 
@@ -143,15 +146,21 @@ public class TwitchIntegration implements Listener {
                         tokenFuture.complete(tokenResponse);
                     } catch (TwitchAPIException e) {
                         if ("authorization_pending".equals(e.getMessage())) {
-                            audience.sendActionBar(Component.text("Waiting for authorization..."));
+                            audience.sendActionBar(messageProvider.getMessage("twitch.waiting_for_authorization"));
                             // Schedule next poll after 5 seconds
                             executorService.schedule(this, 5, TimeUnit.SECONDS);
                         } else {
-                            audience.sendMessage(Component.text("Twitch API error: " + e.getMessage()));
+                            audience.sendMessage(messageProvider.getMessage(
+                                    "twitch.twitch_api_error",
+                                    Placeholder.unparsed("error_message", e.getMessage())
+                            ));
                             tokenFuture.completeExceptionally(e);
                         }
                     } catch (IOException | InterruptedException e) {
-                        audience.sendMessage(Component.text("Authorization failed: " + e.getMessage()));
+                        audience.sendMessage(messageProvider.getMessage(
+                                "twitch.authorization_failed",
+                               Placeholder.unparsed("error_message", e.getMessage())
+                        ));
                         tokenFuture.completeExceptionally(e);
                     }
                 }
@@ -163,7 +172,8 @@ public class TwitchIntegration implements Listener {
             executorService.schedule(() -> {
                 if (!tokenFuture.isDone()) {
                     tokenFuture.completeExceptionally(new TimeoutException("Authorization timed out after 2 minutes."));
-                    audience.sendMessage(Component.text("Authorization timed out."));
+                    audience.sendMessage(messageProvider.getMessage("twitch.authorization_timed_out"));
+                    abortLoginPollingFlow(uuid);
                 }
             }, 2, TimeUnit.MINUTES);
 
@@ -178,7 +188,10 @@ public class TwitchIntegration implements Listener {
             try {
                 validationResponse = twitchTokenValidation.validate(tokenResponse.accessToken());
             } catch (Exception e) {
-                audience.sendMessage(Component.text("Token validation failed: " + e.getMessage()).color(NamedTextColor.RED));
+                audience.sendMessage(messageProvider.getMessage(
+                        "twitch.token_validation_failed",
+                        Placeholder.unparsed("error_message", e.getMessage())
+                ));
                 return CompletableFuture.completedFuture(false);
             }
 
@@ -188,16 +201,18 @@ public class TwitchIntegration implements Listener {
             try {
                 storage.createTwitchUser(twitchUserId, twitchLogin, tokenResponse.accessToken(), tokenResponse.refreshToken());
                 storage.linkAccounts(uuid, twitchUserId);
-                audience.sendMessage(Component.text("Storing Twitch data in database"));
             } catch (SQLException e) {
-                audience.sendMessage(Component.text("An Error occurred while trying to save data in the Database").color(NamedTextColor.RED));
+                audience.sendMessage(messageProvider.getMessage("twitch.db_save_error"));
                 logger.severe("DB error while saving Twitch user: " + e.getMessage());
                 return CompletableFuture.completedFuture(false);
             }
 
             validationTasks.put(twitchUserId, executorService.scheduleAtFixedRate(() -> restoreToken(uuid), 1, 1, TimeUnit.HOURS));
 
-            audience.sendMessage(Component.text("Logged in as: " + twitchLogin));
+            audience.sendMessage(plugin.getMessageProvider().getMessage(
+                    "twitch.logged_in_as",
+                    Placeholder.unparsed("twitch_login", twitchLogin)
+            ));
 
             return CompletableFuture.completedFuture(true);
         });

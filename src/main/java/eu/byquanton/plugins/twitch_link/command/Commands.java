@@ -25,7 +25,8 @@ public class Commands {
 
         ImmutableList.of(
                 new LinkCommands(plugin, manager),
-                new DebugCommands(plugin, manager)
+                new DebugCommands(plugin, manager),
+                new AdminCommands(plugin, manager)
         ).forEach(CommandHandler::register);
     }
 }

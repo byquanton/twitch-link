@@ -1,0 +1,55 @@
+# Broadcaster Twitch ID to check for subscriber/follower status of joining players
+broadcaster_id: ""
+
+join:
+  # If true, will notify the player if their Twitch account is linked
+  message: true
+
+  subscriber:
+    enabled: true
+    # Actions if player is a subscriber of the broadcaster (specified in broadcaster_id)
+    # Placeholders: <player_name> <twitch_name>
+    actions:
+      - type: message
+        message: "<green>Welcome back, <player_name>! Thanks for subscribing!</green>"
+        broadcast: false
+        required_permission: ""
+      - type: command
+        command: "lp user <player_name> permission set twitch.subscriber"
+        executor: console # console or player
+        required_permission: "!twitch.subscriber"
+
+    # Actions if player is NOT a subscriber
+    else_actions:
+      - type: command
+        command: "lp user <player_name> permission unset twitch.subscriber"
+        executor: console # console or player
+        required_permission: "twitch.subscriber"
+
+  follower:
+    enabled: true
+    # Actions if player is a follower of the broadcaster (specified in broadcaster_id)
+    # Placeholders: <player_name> <twitch_name>
+    actions:
+      - type: command
+        command: "lp user <player_name> permission set twitch.follower"
+        executor: console # console or player
+        required_permission: "!twitch.follower"
+    # Actions if player is NOT a following
+    else_actions:
+      - type: command
+        command: "lp user <player_name> permission unset twitch.follower"
+        executor: console # console or player
+        required_permission: "twitch.follower"
+
+  live:
+    enabled: true
+    # Actions if player is live
+    # Placeholders: <player_name> <twitch_name>
+    actions:
+      - type: message
+        message: "<light_purple><player_name> is live on Twitch right now! (twitch.tv/<twitch_name>)</light_purple>"
+        broadcast: true
+        required_permission: ""
+
+    else_actions: []

@@ -2,13 +2,13 @@ package eu.byquanton.plugins.twitch_link.command;
 
 import eu.byquanton.plugins.twitch_link.TwitchLinkPlugin;
 import eu.byquanton.plugins.twitch_link.twitch.TwitchIntegration;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -51,13 +51,17 @@ public class LinkCommands extends CommandHandler {
         UUID playerUUID = context.sender().getUniqueId();
 
         if (twitchIntegration.isLinked(playerUUID)) {
-            context.sender().sendMessage(Component.text("You are currently already authenticated"));
-            // TODO: Give information and add button for removing the link
+            try {
+                String twitchLogin = plugin.getStorage().getLinkedTwitchUser(context.sender().getUniqueId()).login();
+                context.sender().sendMessage(messageProvider.getMessage("link.already_linked", Placeholder.unparsed("twitch_login", twitchLogin)));
+            } catch (SQLException e) {
+                context.sender().sendMessage(messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+            }
             return;
         }
 
         if (hasLoginInProgress.containsKey(playerUUID)) {
-            context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You already started a login process. Use <gray>/link abort</gray> to abort it."));
+            context.sender().sendMessage(messageProvider.getMessage("link.already_started"));
             return;
         }
 
@@ -65,12 +69,9 @@ public class LinkCommands extends CommandHandler {
 
         hasLoginInProgress.put(playerUUID, loginFlowFuture);
 
-
-        loginFlowFuture.thenAccept(aBoolean -> {
-            if (aBoolean) {
-                context.sender().sendMessage(Component.text("Twitch Integration was successful"));
-            } else {
-                context.sender().sendMessage(Component.text("Twitch Integration failed"));
+        loginFlowFuture.thenAccept(success -> {
+            if (!success) {
+                context.sender().sendMessage(messageProvider.getMessage("link.integration_failed"));
             }
             hasLoginInProgress.remove(playerUUID);
         });
@@ -81,7 +82,7 @@ public class LinkCommands extends CommandHandler {
         UUID playerUUID = context.sender().getUniqueId();
 
         if (!hasLoginInProgress.containsKey(playerUUID)) {
-            context.sender().sendMessage(MiniMessage.miniMessage().deserialize("You haven't started a login process yet. Use <gray>/link</gray> to start it."));
+            context.sender().sendMessage(messageProvider.getMessage("link.not_started"));
             return;
         }
         CompletableFuture<Boolean> completableFuture = hasLoginInProgress.get(playerUUID);
@@ -90,7 +91,7 @@ public class LinkCommands extends CommandHandler {
         twitchIntegration.abortLoginPollingFlow(playerUUID);
         completableFuture.cancel(true);
         hasLoginInProgress.remove(playerUUID);
-        context.sender().sendMessage(Component.text("Your login process was aborted."));
+        context.sender().sendMessage(messageProvider.getMessage("link.aborted"));
     }
 
     private void unLinkAccount(CommandContext<Player> context) {
@@ -98,9 +99,9 @@ public class LinkCommands extends CommandHandler {
 
         if (twitchIntegration.isLinked(playerUUID)) {
             twitchIntegration.removeAccount(playerUUID);
-            context.sender().sendMessage("Account is unlinked");
+            context.sender().sendMessage(messageProvider.getMessage("link.account_unlinked"));
         } else {
-            context.sender().sendMessage("You don't have your Account linked. Use /link to link your account");
+            context.sender().sendMessage(messageProvider.getMessage("link.account_not_linked"));
         }
     }
 

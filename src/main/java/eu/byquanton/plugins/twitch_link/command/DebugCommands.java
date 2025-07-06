@@ -3,9 +3,9 @@ package eu.byquanton.plugins.twitch_link.command;
 import eu.byquanton.plugins.twitch_link.TwitchLinkPlugin;
 import eu.byquanton.plugins.twitch_link.twitch.TwitchIntegration;
 import eu.byquanton.plugins.twitch_link.twitch.TwitchUser;
-import eu.byquanton.plugins.twitch_link.twitch.response.helix.HelixException;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.bukkit.parser.PlayerParser;
@@ -13,8 +13,9 @@ import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.parser.standard.StringParser;
 
-import java.io.IOException;
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class DebugCommands extends CommandHandler {
 
@@ -61,13 +62,23 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            boolean userFollowing = twitchIntegration.getTwitchRequestUtil().isUserLive(linkedTwitchUser);
-
-            context.sender().sendMessage(userFollowing ? "Player is currently live on Twitch" : "Player isn't currently live on twitch");
+            twitchIntegration.getTwitchRequestUtil().isUserLive(linkedTwitchUser).orTimeout(5, TimeUnit.SECONDS).whenComplete((userLive, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof TimeoutException) {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                    } else {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                    }
+                } else {
+                    context.sender().sendMessage(
+                            userLive ?
+                                    plugin.getMessageProvider().getMessage("debug.is_live_true") :
+                                    plugin.getMessageProvider().getMessage("debug.is_live_false")
+                    );
+                }
+            });
         } catch (SQLException e) {
-            logError(context, "Database Error, failed to read user data. Message: " + e.getMessage());
-        } catch (HelixException | InterruptedException | IOException e) {
-            logError(context, "API Error, failed to fetch data. Message: " + e.getMessage());
+            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
     }
 
@@ -79,13 +90,24 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            boolean userFollowing = twitchIntegration.getTwitchRequestUtil().isUserSubscribed(linkedTwitchUser, broadcasterId);
+            twitchIntegration.getTwitchRequestUtil().isUserSubscribed(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userSubscribed, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof TimeoutException) {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                    } else {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                    }
+                } else {
+                    context.sender().sendMessage(
+                            userSubscribed ?
+                                    plugin.getMessageProvider().getMessage("debug.is_subscribed_true") :
+                                    plugin.getMessageProvider().getMessage("debug.is_subscribed_false")
+                    );
+                }
+            });
 
-            context.sender().sendMessage(userFollowing ? "Player is subscribed to the specified broadcaster" : "Player isn't subscribed to the specified broadcaster");
         } catch (SQLException e) {
-            logError(context, "Database Error, failed to read user data. Message: " + e.getMessage());
-        } catch (HelixException | InterruptedException | IOException e) {
-            logError(context, "API Error, failed to fetch data. Message: " + e.getMessage());
+            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
     }
 
@@ -96,20 +118,31 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            boolean userFollowing = twitchIntegration.getTwitchRequestUtil().isUserFollowing(linkedTwitchUser, broadcasterId);
-
-            context.sender().sendMessage(userFollowing ? "Player follows the specified broadcaster" : "Player isn't following the specified broadcaster");
+            twitchIntegration.getTwitchRequestUtil().isUserFollowing(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userFollowing, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof TimeoutException) {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
+                    } else {
+                        logError(context.sender(), messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                    }
+                } else {
+                    context.sender().sendMessage(
+                            userFollowing ?
+                                messageProvider.getMessage("debug.follows_true") :
+                                messageProvider.getMessage("debug.follows_false")
+                    );
+                }
+            });
         } catch (SQLException e) {
-            logError(context, "Database Error, failed to read user data. Message: " + e.getMessage());
-        } catch (HelixException | InterruptedException | IOException e) {
-            logError(context, "API Error, failed to fetch data. Message: " + e.getMessage());
+            logError(context.sender(), messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
         }
     }
 
 
-    private void logError(CommandContext<CommandSender> context, String errorMessage) {
-        context.sender().sendMessage(Component.text(errorMessage).color(NamedTextColor.RED));
-        plugin.getLogger().severe(errorMessage);
+    private void logError(CommandSender sender, Component errorMessage) {
+        sender.sendMessage(errorMessage);
+        String plainMessage = PlainTextComponentSerializer.plainText().serialize(errorMessage);
+        plugin.getLogger().severe(plainMessage);
     }
 
 }

@@ -6,5 +6,3 @@ oauth_endpoint: "https://id.twitch.tv/oauth2/"
 helix_endpoint: "https://api.twitch.tv/helix/"
 # Which Login flow should be used to get the oauth token (currently only device_code is available)
 login_flow: "device_code"
-
-broadcaster_id: ""

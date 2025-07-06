@@ -12,6 +12,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public class TwitchRequestUtil {
 
@@ -25,22 +27,41 @@ public class TwitchRequestUtil {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public boolean isUserFollowing(TwitchUser twitchUser, String broadcasterID) throws HelixException, IOException, InterruptedException {
-        FollowedChannelsResponse response = checkUserFollow(twitchUser, broadcasterID);
+    public CompletableFuture<Boolean> isUserFollowing(TwitchUser twitchUser, String broadcasterID) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                FollowedChannelsResponse response = checkUserFollow(twitchUser, broadcasterID);
 
-        return !response.data().isEmpty();
+                return !response.data().isEmpty();
+            } catch (IOException | InterruptedException | HelixException e) {
+                throw new CompletionException(e);
+            }
+        });
     }
 
-    public boolean isUserSubscribed(TwitchUser twitchUser, String broadcasterID) throws HelixException, IOException, InterruptedException {
-        UserSubscriptionResponse response = getUserSubscription(twitchUser, broadcasterID);
-
-        return !response.data().isEmpty();
+    public CompletableFuture<Boolean> isUserSubscribed(TwitchUser twitchUser, String broadcasterID) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                UserSubscriptionResponse response = getUserSubscription(twitchUser, broadcasterID);
+                return !response.data().isEmpty();
+            } catch (IOException | InterruptedException | HelixException e) {
+                if (e.getMessage().contains("does not subscribe to")) {
+                    return false;
+                }
+                throw new CompletionException(e);
+            }
+        });
     }
 
-    public boolean isUserLive(TwitchUser twitchUser) throws HelixException, IOException, InterruptedException {
-        StreamsResponse response = getStreams(twitchUser);
-
-        return !response.data().isEmpty();
+    public CompletableFuture<Boolean> isUserLive(TwitchUser twitchUser) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                StreamsResponse response = getStreams(twitchUser);
+                return !response.data().isEmpty();
+            } catch (IOException | InterruptedException | HelixException e) {
+                throw new CompletionException(e);
+            }
+        });
     }
 
 
