@@ -6,6 +6,7 @@ join:
 
 link:
   already_linked: "<prefix>You are currently linked to <b><twitch_login></b>"
+  already_linked_other_player: "<prefix><b><twitch_login></b> is already linked to another Minecraft account."
   already_started: "<prefix>You already started a login process. Use <gray>/link abort</gray> to abort it."
   not_started: "<prefix>You haven't started a login process yet. Use <gray>/link</gray> to start it."
   aborted: "<prefix>You aborted the login process"

@@ -206,6 +206,19 @@ public class TwitchIntegration implements Listener {
             String twitchLogin = validationResponse.login();
 
             try {
+                UUID linkedMinecraftUUID = storage.getLinkedMinecraftUUID(twitchUserId);
+
+                if (linkedMinecraftUUID != null) {
+                    audience.sendMessage(messageProvider.getMessage("link.already_linked_other_player", Placeholder.unparsed("twitch_login", twitchLogin)));
+                    return CompletableFuture.completedFuture(false);
+                }
+            } catch (SQLException e) {
+                audience.sendMessage(messageProvider.getMessage("debug.error_database", Placeholder.unparsed("error_message", e.getMessage())));
+                logger.severe("DB error while checking if user is already in database: " + e.getMessage());
+                return CompletableFuture.completedFuture(false);
+            }
+
+            try {
                 storage.createTwitchUser(twitchUserId, twitchLogin, tokenResponse.accessToken(), tokenResponse.refreshToken());
                 storage.linkAccounts(uuid, twitchUserId);
             } catch (SQLException e) {

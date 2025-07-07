@@ -114,6 +114,28 @@ public class Storage {
         return null;
     }
 
+
+    public UUID getLinkedMinecraftUUID(TwitchUser twitchUser) throws SQLException  {
+        return getLinkedMinecraftUUID(twitchUser.twitchUserId());
+    }
+
+    public UUID getLinkedMinecraftUUID(String twitchUserID) throws SQLException  {
+        PreparedStatement statement = connection.prepareStatement(
+                "SELECT UUID FROM MINECRAFT_ACCOUNTS WHERE USER_ID = ? AND UUID IS NOT NULL;"
+        );
+        statement.setString(1, twitchUserID.toString());
+        ResultSet rs = statement.executeQuery();
+        if (rs.next()) {
+            String uuidString = rs.getString("UUID");
+            rs.close();
+            statement.close();
+            return UUID.fromString(uuidString);
+        }
+        rs.close();
+        statement.close();
+        return null;
+    }
+
     public TwitchUser getTwitchUserById(String twitchUserId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(
                 "SELECT USER_ID, LOGIN, ACCESS_TOKEN, REFRESH_TOKEN FROM TWITCH_USERS WHERE USER_ID = ?;"
