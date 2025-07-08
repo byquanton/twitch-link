@@ -60,7 +60,7 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            twitchIntegration.getTwitchRequestUtil().isUserLive(linkedTwitchUser).orTimeout(5, TimeUnit.SECONDS).whenComplete((userLive, throwable) -> {
+            twitchIntegration.getTwitchRequestUtil().isUserLive(linkedTwitchUser).whenComplete((userLive, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
                         twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
@@ -88,7 +88,7 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            twitchIntegration.getTwitchRequestUtil().isUserSubscribed(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userSubscribed, throwable) -> {
+            twitchIntegration.getTwitchRequestUtil().isUserSubscribed(linkedTwitchUser, broadcasterId).whenComplete((userSubscribed, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
                         twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));
@@ -116,7 +116,7 @@ public class DebugCommands extends CommandHandler {
         try {
             TwitchUser linkedTwitchUser = plugin.getStorage().getLinkedTwitchUser(target.getUniqueId());
 
-            twitchIntegration.getTwitchRequestUtil().isUserFollowing(linkedTwitchUser, broadcasterId).orTimeout(5, TimeUnit.SECONDS).whenComplete((userFollowing, throwable) -> {
+            twitchIntegration.getTwitchRequestUtil().isUserFollowing(linkedTwitchUser, broadcasterId).whenComplete((userFollowing, throwable) -> {
                 if (throwable != null) {
                     if (throwable instanceof TimeoutException) {
                         twitchIntegration.logError(context.sender(), messageProvider.getMessage("debug.error_timeout"));

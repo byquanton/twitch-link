@@ -14,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 public class TwitchRequestUtil {
 
@@ -36,7 +37,7 @@ public class TwitchRequestUtil {
             } catch (IOException | InterruptedException | HelixException e) {
                 throw new CompletionException(e);
             }
-        });
+        }).orTimeout(twitchIntegration.getRequestTimeout(), TimeUnit.SECONDS);
     }
 
     public CompletableFuture<Boolean> isUserSubscribed(TwitchUser twitchUser, String broadcasterID) {
@@ -50,7 +51,7 @@ public class TwitchRequestUtil {
                 }
                 throw new CompletionException(e);
             }
-        });
+        }).orTimeout(twitchIntegration.getRequestTimeout(), TimeUnit.SECONDS);
     }
 
     public CompletableFuture<Boolean> isUserLive(TwitchUser twitchUser) {
@@ -61,7 +62,7 @@ public class TwitchRequestUtil {
             } catch (IOException | InterruptedException | HelixException e) {
                 throw new CompletionException(e);
             }
-        });
+        }).orTimeout(twitchIntegration.getRequestTimeout(), TimeUnit.SECONDS);
     }
 
 

@@ -63,7 +63,7 @@ public class PlayerJoinListener implements Listener {
                 if (plugin.getConfig().getBoolean("join.subscriber.enabled")) {
                     CompletableFuture<Boolean> isSub = requestUtil.isUserSubscribed(twitchUser, broadcaster);
 
-                    isSub.orTimeout(5, TimeUnit.SECONDS).whenComplete((subscribed, throwable) -> {
+                    isSub.whenComplete((subscribed, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof TimeoutException) {
                                 plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
@@ -79,7 +79,7 @@ public class PlayerJoinListener implements Listener {
                 }
                 if (plugin.getConfig().getBoolean("join.follower.enabled")) {
                     CompletableFuture<Boolean> isFollower = requestUtil.isUserFollowing(twitchUser, broadcaster);
-                    isFollower.orTimeout(5, TimeUnit.SECONDS).whenComplete((follower, throwable) -> {
+                    isFollower.whenComplete((follower, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof TimeoutException) {
                                 plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
@@ -99,7 +99,7 @@ public class PlayerJoinListener implements Listener {
             if (plugin.getConfig().getBoolean("join.live.enabled")) {
                 CompletableFuture<Boolean> isLive = requestUtil.isUserLive(twitchUser);
 
-                isLive.orTimeout(5, TimeUnit.SECONDS).whenComplete((live, throwable) -> {
+                isLive.whenComplete((live, throwable) -> {
                     if (throwable != null) {
                         if (throwable instanceof TimeoutException) {
                             plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));

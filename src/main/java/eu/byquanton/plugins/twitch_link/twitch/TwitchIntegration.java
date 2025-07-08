@@ -242,7 +242,7 @@ public class TwitchIntegration implements Listener {
                     String broadcaster = plugin.getConfig().getString("broadcaster_id", "");
 
                     CompletableFuture<Boolean> isSub = getTwitchRequestUtil().isUserSubscribed(twitchUser, broadcaster);
-                    isSub.orTimeout(5, TimeUnit.SECONDS).whenComplete((subscribed, throwable) -> {
+                    isSub.whenComplete((subscribed, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof TimeoutException) {
                                 logError(player, messageProvider.getMessage("debug.error_timeout"));
@@ -257,7 +257,7 @@ public class TwitchIntegration implements Listener {
                     });
 
                     CompletableFuture<Boolean> isFollower = getTwitchRequestUtil().isUserFollowing(twitchUser, broadcaster);
-                    isFollower.orTimeout(5, TimeUnit.SECONDS).whenComplete((follower, throwable) -> {
+                    isFollower.whenComplete((follower, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof TimeoutException) {
                                 plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
@@ -385,5 +385,9 @@ public class TwitchIntegration implements Listener {
 
     public String getScopes() {
         return twitchConfiguration.getString("scopes");
+    }
+
+    public int getRequestTimeout() {
+        return twitchConfiguration.getInt("request_timeout", 15);
     }
 }
