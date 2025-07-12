@@ -241,35 +241,41 @@ public class TwitchIntegration implements Listener {
                     TwitchUser twitchUser = plugin.getStorage().getLinkedTwitchUser(player.getUniqueId());
                     String broadcaster = plugin.getConfig().getString("broadcaster_id", "");
 
-                    CompletableFuture<Boolean> isSub = getTwitchRequestUtil().isUserSubscribed(twitchUser, broadcaster);
-                    isSub.whenComplete((subscribed, throwable) -> {
-                        if (throwable != null) {
-                            if (throwable instanceof TimeoutException) {
-                                logError(player, messageProvider.getMessage("debug.error_timeout"));
-                            } else {
-                                logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
-                            }
-                        } else {
-                            if (subscribed) {
-                                plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.subscriber.actions"));
-                            }
-                        }
-                    });
 
-                    CompletableFuture<Boolean> isFollower = getTwitchRequestUtil().isUserFollowing(twitchUser, broadcaster);
-                    isFollower.whenComplete((follower, throwable) -> {
-                        if (throwable != null) {
-                            if (throwable instanceof TimeoutException) {
-                                plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
+
+                    if (plugin.getConfig().getBoolean("link.subscriber.enabled")) {
+                        CompletableFuture<Boolean> isSub = getTwitchRequestUtil().isUserSubscribed(twitchUser, broadcaster);
+                        isSub.whenComplete((subscribed, throwable) -> {
+                            if (throwable != null) {
+                                if (throwable instanceof TimeoutException) {
+                                    logError(player, messageProvider.getMessage("debug.error_timeout"));
+                                } else {
+                                    logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                                }
                             } else {
-                                plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                                if (subscribed) {
+                                    plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.subscriber.actions"));
+                                }
                             }
-                        } else {
-                            if (follower) {
-                                plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.follower.actions"));
+                        });
+                    }
+
+                    if (plugin.getConfig().getBoolean("link.follower.enabled")) {
+                        CompletableFuture<Boolean> isFollower = getTwitchRequestUtil().isUserFollowing(twitchUser, broadcaster);
+                        isFollower.whenComplete((follower, throwable) -> {
+                            if (throwable != null) {
+                                if (throwable instanceof TimeoutException) {
+                                    plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_timeout"));
+                                } else {
+                                    plugin.getTwitchIntegration().logError(player, messageProvider.getMessage("debug.error_api", Placeholder.unparsed("error_message", throwable.getMessage())));
+                                }
+                            } else {
+                                if (follower) {
+                                    plugin.getActionExecutor().executeConfiguredActions(player, twitchUser.login(), ActionExecutor.getConfigList(plugin.getConfig(), "link.follower.actions"));
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
 
 
                 } catch (Exception e) {
