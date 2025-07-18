@@ -298,20 +298,29 @@ public class TwitchIntegration implements Listener {
         try {
             TwitchUser twitchUser = storage.getLinkedTwitchUser(uuid);
             if (twitchUser == null) return;
-            TokenValidationResponse validation = twitchTokenValidation.validate(twitchUser.accessToken());
-            logger.info("Validated session for Twitch user " + validation.login());
-        } catch (TwitchAPIException e) {
-            if (e.getResponse().status() == 401) {
-                logger.warning("Token expired. Attempting refresh for user: " + uuid);
-                refreshToken(uuid);
-            } else {
-                logger.warning("Twitch API error for user " + uuid + ": " + e.getMessage());
-                removeAccount(uuid);
+            try {
+                TokenValidationResponse validation = twitchTokenValidation.validate(twitchUser.accessToken());
+                logger.info("Validated session for Twitch user " + validation.login() + " (ID: " + validation.userId() + ") for player " + uuid + "expires in " + validation.expiresIn() + " seconds.");
+
+                // If token expires in less than an hour, refresh it
+                if (validation.expiresIn() < 3600) {
+                    logger.info("Token for user " + twitchUser.login() + " expires in less than an hour (" + validation.expiresIn() + "s). Refreshing token.");
+                    refreshToken(uuid);
+                }
+            } catch (TwitchAPIException e) {
+                if (e.getResponse().status() == 401) {
+                    logger.warning("Token expired. Attempting refresh for user: " + twitchUser.login());
+                    refreshToken(uuid);
+                } else {
+                    logger.warning("Twitch API error for user " + twitchUser.login() + ": " + e.getMessage());
+                    removeAccount(uuid);
+                }
             }
-        } catch (IOException | InterruptedException | SQLException ex) {
-            logger.severe("Error validating token for user " + uuid + ": " + ex.getMessage());
+        } catch (IOException | InterruptedException | SQLException e) {
+            logger.severe("Error validating token for user " + uuid + ": " + e.getMessage());
             removeAccount(uuid);
         }
+
     }
 
 

@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "eu.byquanton.plugins"
-version = "1.1.0"
+version = "1.1.1"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -38,7 +38,7 @@ paper {
 
 tasks {
     runServer{
-        minecraftVersion("1.21.7")
+        minecraftVersion("1.21.8")
         downloadPlugins {
             modrinth("viaversion", "5.4.1")
             modrinth("viabackwards", "5.4.1")
