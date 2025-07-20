@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "eu.byquanton.plugins"
-version = "1.1.1"
+version = "1.1.2"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))

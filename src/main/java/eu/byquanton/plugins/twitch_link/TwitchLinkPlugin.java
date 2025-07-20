@@ -27,8 +27,8 @@ public class TwitchLinkPlugin extends JavaPlugin {
 
         messageProvider = new MessageProvider(this, new File(getDataFolder(), "messages.yml"), "/messages.yml");
         storage = new Storage(this, new File(getDataFolder(), "database.db"));
-        twitchIntegration = new TwitchIntegration(this);
         actionExecutor = new ActionExecutor(this);
+        twitchIntegration = new TwitchIntegration(this);
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
 

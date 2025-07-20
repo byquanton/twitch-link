@@ -242,7 +242,6 @@ public class TwitchIntegration implements Listener {
                     String broadcaster = plugin.getConfig().getString("broadcaster_id", "");
 
 
-
                     if (plugin.getConfig().getBoolean("link.subscriber.enabled")) {
                         CompletableFuture<Boolean> isSub = getTwitchRequestUtil().isUserSubscribed(twitchUser, broadcaster);
                         isSub.whenComplete((subscribed, throwable) -> {
@@ -367,7 +366,9 @@ public class TwitchIntegration implements Listener {
 
     private void removeTwitchUser(String twitchUserId) {
         try {
-            validationTasks.get(twitchUserId).cancel(false);
+            if (validationTasks.containsKey(twitchUserId)) {
+                validationTasks.get(twitchUserId).cancel(false);
+            }
             storage.deleteTwitchUser(twitchUserId);
             logger.info("Deleted Twitch user from DB: " + twitchUserId);
         } catch (SQLException e) {
