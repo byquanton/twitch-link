@@ -74,7 +74,7 @@ public class TwitchIntegration implements Listener {
 
     public void shutdown() {
         validationTasks.forEach((userID, scheduledFuture) -> {
-            logger.info("Shutting down validation task for user with id: " + userID);
+            logger.fine("Shutting down validation task for user with id: " + userID);
             scheduledFuture.cancel(false);
         });
 
@@ -299,11 +299,11 @@ public class TwitchIntegration implements Listener {
             if (twitchUser == null) return;
             try {
                 TokenValidationResponse validation = twitchTokenValidation.validate(twitchUser.accessToken());
-                logger.info("Validated session for Twitch user " + validation.login() + " (ID: " + validation.userId() + ") for player " + uuid + "expires in " + validation.expiresIn() + " seconds.");
+                logger.fine("Validated session for Twitch user " + validation.login() + " (ID: " + validation.userId() + ") for player " + uuid + "expires in " + validation.expiresIn() + " seconds.");
 
                 // If token expires in less than an hour, refresh it
                 if (validation.expiresIn() < 3600) {
-                    logger.info("Token for user " + twitchUser.login() + " expires in less than an hour (" + validation.expiresIn() + "s). Refreshing token.");
+                    logger.fine("Token for user " + twitchUser.login() + " expires in less than an hour (" + validation.expiresIn() + "s). Refreshing token.");
                     refreshToken(uuid);
                 }
             } catch (TwitchAPIException e) {
@@ -336,7 +336,7 @@ public class TwitchIntegration implements Listener {
             } catch (SQLException e) {
                 logger.severe("Failed to update tokens in DB for user " + uuid + ": " + e.getMessage());
             }
-            logger.info("Refreshed token for user " + uuid);
+            logger.fine("Refreshed token for user " + uuid);
         } catch (Exception e) {
             logger.severe("Failed to refresh token for user " + uuid + ": " + e.getMessage());
             removeAccount(uuid);
@@ -360,7 +360,7 @@ public class TwitchIntegration implements Listener {
         } catch (Exception e) {
             logger.severe("Error while removing account for user " + uuid + ": " + e.getMessage());
         }
-        logger.info("Removed invalid Twitch account for user " + uuid);
+        logger.fine("Removed invalid Twitch account for user " + uuid);
     }
 
 
@@ -370,7 +370,7 @@ public class TwitchIntegration implements Listener {
                 validationTasks.get(twitchUserId).cancel(false);
             }
             storage.deleteTwitchUser(twitchUserId);
-            logger.info("Deleted Twitch user from DB: " + twitchUserId);
+            logger.fine("Deleted Twitch user from DB: " + twitchUserId);
         } catch (SQLException e) {
             logger.severe("Failed to delete Twitch user from DB: " + twitchUserId + ", error: " + e.getMessage());
         }
